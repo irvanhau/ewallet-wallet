@@ -154,3 +154,47 @@ func (api *WalletAPI) GetBalance(c *gin.Context) {
 
 	helpers.SendResponseHTTP(c, http.StatusCreated, constants.SuccessMessage, resp)
 }
+
+func (api *WalletAPI) GetWalletHistory(c *gin.Context) {
+	var (
+		log   = helpers.Logger
+		param models.WalletHistoryParam
+	)
+
+	if err := c.ShouldBindQuery(&param); err != nil {
+		log.Error("failed to parse query param: ", err)
+		helpers.SendResponseHTTP(c, http.StatusBadRequest, constants.ErrFailedBadRequest, nil)
+		return
+	}
+
+	if param.WalletTransactionType != "" {
+		if param.WalletTransactionType != "DEBIT" && param.WalletTransactionType != "CREDIT" {
+			log.Error("invalid wallet_transaction_type")
+			helpers.SendResponseHTTP(c, http.StatusBadRequest, constants.ErrFailedBadRequest, nil)
+			return
+		}
+	}
+
+	token, ok := c.Get("token")
+	if !ok {
+		log.Error("failed to get token ")
+		helpers.SendResponseHTTP(c, http.StatusInternalServerError, constants.ErrServerError, nil)
+		return
+	}
+
+	tokenData, ok := token.(models.TokenData)
+	if !ok {
+		log.Error("failed to parse token data")
+		helpers.SendResponseHTTP(c, http.StatusInternalServerError, constants.ErrServerError, nil)
+		return
+	}
+
+	resp, err := api.WalletService.GetWalletHistory(c.Request.Context(), tokenData.UserID, param)
+	if err != nil {
+		log.Error("failed to get wallet history: ", err)
+		helpers.SendResponseHTTP(c, http.StatusInternalServerError, constants.ErrServerError, nil)
+		return
+	}
+
+	helpers.SendResponseHTTP(c, http.StatusCreated, constants.SuccessMessage, resp)
+}
